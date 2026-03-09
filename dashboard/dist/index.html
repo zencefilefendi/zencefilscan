@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZencefilScan - Holo-Command Center</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #020205;
+            color: #00ffcc;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 255, 204, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 204, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        /* Scan line overlay */
+        .scanline-overlay {
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 255, 204, 0.015) 2px,
+                    rgba(0, 255, 204, 0.015) 4px);
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Floating particles */
+        .particles {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #00ffcc;
+            border-radius: 50%;
+            animation: float linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes float {
+            0% {
+                opacity: 0;
+                transform: translateY(100vh) scale(0);
+            }
+
+            10% {
+                opacity: 0.8;
+            }
+
+            90% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-10vh) scale(1.5);
+            }
+        }
+
+        /* 3D Globe Canvas */
+        #globe-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+
+        #globeCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Main overlay */
+        .overlay {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            padding: 20px 32px;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+
+        .pointer-active {
+            pointer-events: auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid rgba(0, 255, 204, 0.3);
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 33%;
+            height: 2px;
+            background: linear-gradient(90deg, #00ffcc, transparent);
+            box-shadow: 0 0 15px #00ffcc, 0 0 30px #00ffcc;
+            animation: headerGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes headerGlow {
+
+            0%,
+            100% {
+                width: 33%;
+                opacity: 1;
+            }
+
+            50% {
+                width: 50%;
+                opacity: 0.7;
+            }
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5), inset 0 0 10px rgba(0, 255, 204, 0.1);
+            background: rgba(0, 255, 204, 0.05);
+            backdrop-filter: blur(12px);
+            animation: iconPulse 2s ease-in-out infinite;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 50%;
+            animation: iconRing 3s linear infinite;
+        }
+
+        @keyframes iconPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(0, 255, 204, 0.8), 0 0 60px rgba(0, 255, 204, 0.3);
+            }
+        }
+
+        @keyframes iconRing {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .logo-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: #00ffcc;
+            fill: none;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            color: #00ffcc;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.8), 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+
+        .subtitle {
+            font-size: 0.65rem;
+            letter-spacing: 0.35em;
+            opacity: 0.6;
+            margin-top: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
+        .status-badge {
+            background: rgba(0, 255, 204, 0.08);
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            padding: 5px 14px;
+            border-radius: 2px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.7rem;
+        }
+
+        .status-label {
+            opacity: 0.6;
+        }
+
+        .status-value {
+            font-weight: 700;
+            color: #00ffcc;
+        }
+
+        .blink {
+            animation: blinker 1.5s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #00ffcc;
+            box-shadow: 0 0 6px #00ffcc;
+            animation: dotPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes dotPing {
+
+            75%,
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .timestamp {
+            font-size: 0.6rem;
+            opacity: 0.4;
+            letter-spacing: 0.1em;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: rgba(5, 11, 20, 0.75);
+            border: 1px solid rgba(0, 255, 204, 0.25);
+            backdrop-filter: blur(20px);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1), inset 0 1px 0 rgba(0, 255, 204, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 255, 204, 0.5);
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2), inset 0 1px 0 rgba(0, 255, 204, 0.2);
+        }
+
+        .card-scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #00ffcc, transparent);
+            opacity: 0.6;
+            animation: scanLine 3s ease-in-out infinite;
+            box-shadow: 0 3px 15px rgba(0, 255, 204, 0.5);
+        }
+
+        @keyframes scanLine {
+
+            0%,
+            100% {
+                transform: translateX(-100%);
+            }
+
+            50% {
+                transform: translateX(100%);
+            }
+        }
+
+        .card-header {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-header svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+        }
+
+        /* Left column - Intelligence */
+        .left-col {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .intel-body {
+            padding: 16px 18px;
+        }
+
+        .intel-item {
+            margin-bottom: 16px;
+        }
+
+        .intel-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.25em;
+            color: rgba(0, 255, 204, 0.5);
+            display: block;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .intel-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e0e0e0;
+            letter-spacing: 0.08em;
+        }
+
+        .intel-prefix {
+            color: #00ffcc;
+            opacity: 0.5;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .vuln-total-area {
+            background: rgba(127, 29, 29, 0.15);
+            margin: 0 -18px -16px;
+            padding: 16px 18px;
+            border-top: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .vuln-total-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.25em;
+            color: #f87171;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .vuln-total-num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: #ef4444;
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.5), 0 0 40px rgba(255, 0, 0, 0.2);
+            animation: vulnPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes vulnPulse {
+
+            0%,
+            100% {
+                text-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+            }
+
+            50% {
+                text-shadow: 0 0 25px rgba(255, 0, 0, 0.8), 0 0 50px rgba(255, 0, 0, 0.3);
+            }
+        }
+
+        /* Severity breakdown */
+        .severity-bar {
+            display: flex;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 12px;
+            gap: 2px;
+        }
+
+        .sev-critical {
+            background: #ef4444;
+            flex: var(--sev-c, 3);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+        }
+
+        .sev-high {
+            background: #f97316;
+            flex: var(--sev-h, 4);
+        }
+
+        .sev-medium {
+            background: #eab308;
+            flex: var(--sev-m, 3);
+        }
+
+        .sev-low {
+            background: #3b82f6;
+            flex: var(--sev-l, 2);
+        }
+
+        .sev-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.5rem;
+            letter-spacing: 0.1em;
+        }
+
+        .sev-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.7;
+        }
+
+        .sev-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        /* Scan stats mini cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-mini {
+            background: rgba(0, 255, 204, 0.04);
+            border: 1px solid rgba(0, 255, 204, 0.15);
+            border-radius: 6px;
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .stat-mini-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #00ffcc;
+        }
+
+        .stat-mini-label {
+            font-size: 0.45rem;
+            letter-spacing: 0.15em;
+            opacity: 0.5;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Right column - Threats */
+        .right-col {
+            width: 420px;
+            height: calc(100vh - 140px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-col .card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-col .card-header {
+            color: #facc15;
+        }
+
+        .threat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+        }
+
+        .threat-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .threat-list::-webkit-scrollbar-track {
+            background: rgba(0, 255, 204, 0.03);
+            border-radius: 4px;
+        }
+
+        .threat-list::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 204, 0.25);
+            border-radius: 4px;
+        }
+
+        .threat-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 204, 0.5);
+        }
+
+        .threat-item {
+            background: rgba(26, 5, 5, 0.7);
+            border-left: 3px solid;
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 0.7rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+            cursor: default;
+            opacity: 0;
+            transform: translateX(20px);
+            animation: slideIn 0.5s forwards;
+        }
+
+        .threat-item:hover {
+            background: rgba(127, 29, 29, 0.3);
+            transform: translateX(4px) !important;
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .threat-sev-critical {
+            border-color: #ef4444;
+        }
+
+        .threat-sev-high {
+            border-color: #f97316;
+        }
+
+        .threat-sev-medium {
+            border-color: #eab308;
+        }
+
+        .threat-sev-low {
+            border-color: #3b82f6;
+        }
+
+        .threat-sev-info {
+            border-color: #22c55e;
+        }
+
+        .threat-label {
+            font-weight: 700;
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .threat-sev-badge {
+            font-size: 0.5rem;
+            padding: 1px 6px;
+            border-radius: 2px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+
+        .badge-critical {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .badge-high {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .badge-medium {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+
+        .badge-low {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .threat-id {
+            font-size: 0.5rem;
+            opacity: 0.4;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .threat-desc {
+            color: #d4d4d4;
+            line-height: 1.5;
+            opacity: 0.85;
+            margin-top: 4px;
+        }
+
+        /* Loading state */
+        .loading-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .loader-ring {
+            position: relative;
+            width: 96px;
+            height: 96px;
+        }
+
+        .loader-ring .outer,
+        .loader-ring .inner {
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .loader-ring .outer {
+            inset: 0;
+            border: 3px solid rgba(0, 255, 204, 0.15);
+            border-top-color: #00ffcc;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-ring .inner {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            border: 3px solid rgba(0, 255, 204, 0.15);
+            border-bottom-color: #00ffcc;
+            animation: spin 1.5s linear infinite reverse;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.3em;
+            animation: pulse-text 2s ease-in-out infinite;
+            text-shadow: 0 0 10px #00ffcc;
+        }
+
+        @keyframes pulse-text {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Console log in bottom */
+        .console-log {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            pointer-events: none;
+            padding: 0 32px 12px;
+        }
+
+        .console-inner {
+            background: rgba(2, 2, 5, 0.85);
+            border: 1px solid rgba(0, 255, 204, 0.15);
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.55rem;
+            max-height: 60px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .console-line {
+            opacity: 0;
+            animation: consoleFade 0.3s forwards;
+            line-height: 1.6;
+        }
+
+        @keyframes consoleFade {
+            to {
+                opacity: 0.6;
+            }
+        }
+
+        .console-prefix {
+            color: #00ffcc;
+            font-weight: 700;
+        }
+
+        .console-time {
+            color: #666;
+        }
+
+        .console-ok {
+            color: #22c55e;
+        }
+
+        .console-warn {
+            color: #eab308;
+        }
+
+        .console-err {
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+    <div class="scanline-overlay"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- 3D Globe -->
+    <div id="globe-container">
+        <canvas id="globeCanvas"></canvas>
+    </div>
+
+    <!-- UI Overlay -->
+    <div class="overlay" id="app">
+        <header class="header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="title">ZENCEFILSCAN</div>
+                    <div class="subtitle">HOLO-COMMAND CENTER v1.2</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge">
+                    <span class="status-label">SYSTEM:</span>
+                    <span class="status-value blink">ONLINE</span>
+                    <div class="status-dot"></div>
+                </div>
+                <div class="timestamp" id="clock"></div>
+            </div>
+        </header>
+
+        <div class="content" id="content">
+            <div class="loading-state">
+                <div class="loader-ring">
+                    <div class="outer"></div>
+                    <div class="inner"></div>
+                </div>
+                <div class="loading-text">AWAITING TELEMETRY...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Console Log -->
+    <div class="console-log">
+        <div class="console-inner" id="consoleLog"></div>
+    </div>
+
+    <!-- Three.js Globe -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+
+        const canvas = document.getElementById('globeCanvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 1.5, 8);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+
+        // ===== GLOBE =====
+        const globeGroup = new THREE.Group();
+        scene.add(globeGroup);
+
+        // Main wireframe globe
+        const globeGeo = new THREE.SphereGeometry(2.5, 64, 64);
+        const globeMat = new THREE.MeshStandardMaterial({
+            color: 0x00aacc,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.12,
+            emissive: 0x003366,
+            emissiveIntensity: 0.5
+        });
+        const globe = new THREE.Mesh(globeGeo, globeMat);
+        globeGroup.add(globe);
+
+        // Inner core glow
+        const coreGeo = new THREE.SphereGeometry(1.2, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0x001a33,
+            transparent: true,
+            opacity: 0.6
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        globeGroup.add(core);
+
+        // Inner core pulse
+        const corePulseGeo = new THREE.SphereGeometry(1.25, 32, 32);
+        const corePulseMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffcc,
+            transparent: true,
+            opacity: 0.05,
+            side: THREE.BackSide
+        });
+        const corePulse = new THREE.Mesh(corePulseGeo, corePulseMat);
+        globeGroup.add(corePulse);
+
+        // ===== LATITUDE / LONGITUDE LINES =====
+        function createLatLonLines() {
+            const group = new THREE.Group();
+            const r = 2.52;
+
+            // Latitude lines
+            for (let lat = -60; lat <= 60; lat += 30) {
+                const phi = (90 - lat) * Math.PI / 180;
+                const radius = r * Math.sin(phi);
+                const y = r * Math.cos(phi);
+                const curve = new THREE.EllipseCurve(0, 0, radius, radius, 0, 2 * Math.PI, false, 0);
+                const pts = curve.getPoints(64);
+                const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, y, p.y)));
+                const mat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.06 });
+                group.add(new THREE.Line(geo, mat));
+            }
+
+            // Longitude lines
+            for (let lon = 0; lon < 360; lon += 30) {
+                const pts = [];
+                for (let i = 0; i <= 64; i++) {
+                    const phi = (i / 64) * Math.PI;
+                    const theta = lon * Math.PI / 180;
+                    pts.push(new THREE.Vector3(
+                        r * Math.sin(phi) * Math.cos(theta),
+                        r * Math.cos(phi),
+                        r * Math.sin(phi) * Math.sin(theta)
+                    ));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(pts);
+                const mat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.06 });
+                group.add(new THREE.Line(geo, mat));
+            }
+            return group;
+        }
+        globeGroup.add(createLatLonLines());
+
+        // ===== ORBITAL RINGS (HUD) =====
+        function createRing(radius, tubeRadius, color, opacity) {
+            const geo = new THREE.TorusGeometry(radius, tubeRadius, 16, 128);
+            const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide });
+            return new THREE.Mesh(geo, mat);
+        }
+
+        const ring1 = createRing(3.2, 0.008, 0x00ffcc, 0.25);
+        ring1.rotation.x = Math.PI / 2;
+        globeGroup.add(ring1);
+
+        const ring2 = createRing(3.5, 0.006, 0x0088ff, 0.15);
+        ring2.rotation.x = Math.PI * 0.6;
+        ring2.rotation.y = Math.PI * 0.3;
+        globeGroup.add(ring2);
+
+        const ring3 = createRing(3.8, 0.005, 0xff00ff, 0.1);
+        ring3.rotation.x = Math.PI * 0.35;
+        ring3.rotation.z = Math.PI * 0.5;
+        globeGroup.add(ring3);
+
+        // Ring markers (small dots on rings)
+        function addRingMarkers(ring, count, color) {
+            const r = ring.geometry.parameters.radius;
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const dotGeo = new THREE.SphereGeometry(0.025, 8, 8);
+                const dotMat = new THREE.MeshBasicMaterial({ color });
+                const dot = new THREE.Mesh(dotGeo, dotMat);
+                dot.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
+                ring.add(dot);
+            }
+        }
+        addRingMarkers(ring1, 12, 0x00ffcc);
+        addRingMarkers(ring2, 8, 0x0088ff);
+
+        // ===== VULNERABILITY HOTSPOT NODES ON GLOBE =====
+        const hotspots = [];
+        const hotspotLocations = [
+            { lat: 41.0, lon: 28.9, label: 'Istanbul' },    // Turkey
+            { lat: 40.7, lon: -74.0, label: 'New York' },
+            { lat: 51.5, lon: -0.1, label: 'London' },
+            { lat: 35.6, lon: 139.6, label: 'Tokyo' },
+            { lat: -33.8, lon: 151.2, label: 'Sydney' },
+            { lat: 37.7, lon: -122.4, label: 'San Francisco' },
+            { lat: 55.7, lon: 37.6, label: 'Moscow' },
+            { lat: 1.3, lon: 103.8, label: 'Singapore' },
+            { lat: 48.8, lon: 2.3, label: 'Paris' },
+            { lat: 22.3, lon: 114.1, label: 'Hong Kong' },
+            { lat: -23.5, lon: -46.6, label: 'São Paulo' },
+            { lat: 25.2, lon: 55.2, label: 'Dubai' },
+        ];
+
+        function latLonToVec3(lat, lon, r) {
+            const phi = (90 - lat) * Math.PI / 180;
+            const theta = (lon + 180) * Math.PI / 180;
+            return new THREE.Vector3(
+                -r * Math.sin(phi) * Math.cos(theta),
+                r * Math.cos(phi),
+                r * Math.sin(phi) * Math.sin(theta)
+            );
+        }
+
+        hotspotLocations.forEach((loc, i) => {
+            const pos = latLonToVec3(loc.lat, loc.lon, 2.52);
+
+            // Outer pulse ring
+            const ringGeo = new THREE.RingGeometry(0.04, 0.07, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.copy(pos);
+            ring.lookAt(0, 0, 0);
+            globeGroup.add(ring);
+
+            // Core dot
+            const dotGeo = new THREE.SphereGeometry(0.03, 8, 8);
+            const dotMat = new THREE.MeshBasicMaterial({ color: i === 0 ? 0x00ff00 : 0xff4444 });
+            const dot = new THREE.Mesh(dotGeo, dotMat);
+            dot.position.copy(pos);
+            globeGroup.add(dot);
+
+            // Vertical beam
+            const beamGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.3, 4);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: i === 0 ? 0x00ffcc : 0xff4444,
+                transparent: true,
+                opacity: 0.4
+            });
+            const beam = new THREE.Mesh(beamGeo, beamMat);
+            beam.position.copy(pos.clone().multiplyScalar(1.06));
+            beam.lookAt(0, 0, 0);
+            globeGroup.add(beam);
+
+            hotspots.push({ ring, dot, pos, phase: Math.random() * Math.PI * 2 });
+        });
+
+        // ===== SCAN ARC CONNECTIONS =====
+        function createArc(start, end, color, heightFactor) {
+            const mid = start.clone().add(end).multiplyScalar(0.5);
+            mid.normalize().multiplyScalar(2.52 + heightFactor);
+
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+            const pts = curve.getPoints(50);
+            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+            const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+            return { line: new THREE.Line(geo, mat), curve, pts };
+        }
+
+        const arcs = [];
+        const arcPairs = [
+            [0, 1], [0, 2], [0, 3], [0, 7], [1, 2], [2, 8],
+            [3, 9], [4, 7], [5, 1], [6, 2], [8, 11], [10, 5],
+            [9, 7], [11, 3], [1, 8], [5, 3]
+        ];
+
+        arcPairs.forEach(([a, b]) => {
+            const startPos = latLonToVec3(hotspotLocations[a].lat, hotspotLocations[a].lon, 2.52);
+            const endPos = latLonToVec3(hotspotLocations[b].lat, hotspotLocations[b].lon, 2.52);
+            const dist = startPos.distanceTo(endPos);
+            const colors = [0x00ffcc, 0xff4444, 0x0088ff, 0xff00ff, 0xffaa00];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            const arcData = createArc(startPos, endPos, color, 0.3 + dist * 0.15);
+            arcData.progress = 0;
+            arcData.speed = 0.003 + Math.random() * 0.005;
+            arcData.delay = Math.random() * 200;
+            arcData.color = color;
+            globeGroup.add(arcData.line);
+            arcs.push(arcData);
+        });
+
+        // ===== FLYING DATA PACKETS ON ARCS =====
+        const packets = [];
+        arcs.forEach((arc, i) => {
+            for (let j = 0; j < 2; j++) {
+                const pktGeo = new THREE.SphereGeometry(0.02, 6, 6);
+                const pktMat = new THREE.MeshBasicMaterial({ color: arc.color });
+                const pkt = new THREE.Mesh(pktGeo, pktMat);
+                pkt.visible = false;
+                globeGroup.add(pkt);
+                packets.push({
+                    mesh: pkt,
+                    arc,
+                    t: Math.random(),
+                    speed: 0.004 + Math.random() * 0.006,
+                    active: false,
+                    delay: i * 30 + j * 60 + Math.random() * 100
+                });
+            }
+        });
+
+        // ===== RADAR PULSE FROM ORIGIN (Istanbul) =====
+        const radarWaves = [];
+        function createRadarWave() {
+            const geo = new THREE.RingGeometry(0.01, 0.02, 32);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            const originPos = latLonToVec3(41.0, 28.9, 2.53);
+            mesh.position.copy(originPos);
+            mesh.lookAt(0, 0, 0);
+            globeGroup.add(mesh);
+            return { mesh, scale: 0.1, opacity: 0.6 };
+        }
+
+        // Pre-create radar waves
+        for (let i = 0; i < 4; i++) {
+            const wave = createRadarWave();
+            wave.scale = i * 3;
+            wave.opacity = Math.max(0, 0.6 - i * 0.15);
+            radarWaves.push(wave);
+        }
+
+        // ===== AMBIENT PARTICLES =====
+        const particleCount = 800;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleSizes = new Float32Array(particleCount);
+        const particleVelocities = [];
+
+        for (let i = 0; i < particleCount; i++) {
+            const r = 3 + Math.random() * 6;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI;
+            particlePositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            particlePositions[i * 3 + 1] = r * Math.cos(phi);
+            particlePositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+            particleSizes[i] = 0.5 + Math.random() * 1.5;
+            particleVelocities.push({
+                x: (Math.random() - 0.5) * 0.002,
+                y: (Math.random() - 0.5) * 0.002,
+                z: (Math.random() - 0.5) * 0.002,
+            });
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        particleGeo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+
+        const particleMat = new THREE.PointsMaterial({
+            color: 0x00ffcc,
+            size: 0.015,
+            transparent: true,
+            opacity: 0.4,
+            sizeAttenuation: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+
+        const particleSystem = new THREE.Points(particleGeo, particleMat);
+        scene.add(particleSystem);
+
+        // ===== LIGHTS =====
+        scene.add(new THREE.AmbientLight(0x334455, 0.8));
+
+        const pl1 = new THREE.PointLight(0x00ffff, 3, 20);
+        pl1.position.set(8, 6, 8);
+        scene.add(pl1);
+
+        const pl2 = new THREE.PointLight(0xff00ff, 1.5, 20);
+        pl2.position.set(-8, -4, -6);
+        scene.add(pl2);
+
+        const pl3 = new THREE.PointLight(0x0044ff, 2, 15);
+        pl3.position.set(0, -8, 4);
+        scene.add(pl3);
+
+        // ===== RESIZE =====
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ===== ANIMATION LOOP =====
+        let frame = 0;
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+            frame++;
+
+            // Globe rotation
+            globeGroup.rotation.y += 0.0015;
+
+            // Ring rotations
+            ring1.rotation.z = elapsed * 0.1;
+            ring2.rotation.y = elapsed * 0.08;
+            ring2.rotation.z = elapsed * -0.05;
+            ring3.rotation.x = Math.PI * 0.35 + elapsed * 0.06;
+            ring3.rotation.y = elapsed * 0.04;
+
+            // Core pulse
+            const coreScale = 1 + Math.sin(elapsed * 2) * 0.05;
+            corePulse.scale.setScalar(coreScale);
+            corePulseMat.opacity = 0.03 + Math.sin(elapsed * 3) * 0.02;
+
+            // Hotspot animations
+            hotspots.forEach((hs, i) => {
+                const pulse = 1 + Math.sin(elapsed * 3 + hs.phase) * 0.4;
+                hs.ring.scale.setScalar(pulse);
+                hs.ring.material.opacity = 0.8 - pulse * 0.3;
+            });
+
+            // Arc drawing animation (progressive reveal)
+            arcs.forEach((arc) => {
+                if (frame > arc.delay) {
+                    arc.progress = Math.min(arc.progress + arc.speed, 1);
+                    const drawRange = Math.floor(arc.progress * 51);
+                    arc.line.geometry.setDrawRange(0, drawRange);
+                    arc.line.material.opacity = 0.3 + Math.sin(elapsed * 2) * 0.15;
+                }
+            });
+
+            // Data packets flying along arcs
+            packets.forEach(pkt => {
+                if (frame > pkt.delay) {
+                    pkt.active = true;
+                    pkt.mesh.visible = true;
+                    pkt.t += pkt.speed;
+                    if (pkt.t > 1) pkt.t = 0;
+                    const pos = pkt.arc.curve.getPoint(pkt.t);
+                    pkt.mesh.position.copy(pos);
+                    pkt.mesh.scale.setScalar(0.8 + Math.sin(pkt.t * Math.PI) * 0.5);
+                }
+            });
+
+            // Radar waves
+            radarWaves.forEach((wave, i) => {
+                wave.scale += 0.02;
+                wave.opacity -= 0.001;
+                wave.mesh.scale.setScalar(wave.scale);
+                wave.mesh.material.opacity = Math.max(0, wave.opacity);
+
+                if (wave.opacity <= 0) {
+                    wave.scale = 0.1;
+                    wave.opacity = 0.5;
+                }
+            });
+
+            // Particle system
+            const positions = particleGeo.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] += particleVelocities[i].x;
+                positions[i * 3 + 1] += particleVelocities[i].y;
+                positions[i * 3 + 2] += particleVelocities[i].z;
+
+                const dist = Math.sqrt(
+                    positions[i * 3] ** 2 + positions[i * 3 + 1] ** 2 + positions[i * 3 + 2] ** 2
+                );
+                if (dist > 10 || dist < 3) {
+                    particleVelocities[i].x *= -1;
+                    particleVelocities[i].y *= -1;
+                    particleVelocities[i].z *= -1;
+                }
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+
+            // Light animation
+            pl1.intensity = 3 + Math.sin(elapsed * 1.5) * 0.5;
+            pl2.intensity = 1.5 + Math.cos(elapsed * 1.2) * 0.5;
+
+            // Slow camera orbit
+            camera.position.x = Math.sin(elapsed * 0.05) * 1.5;
+            camera.position.y = 1.5 + Math.sin(elapsed * 0.08) * 0.5;
+            camera.lookAt(0, 0, 0);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Export for dashboard interop
+        window.globeScene = { globeGroup, hotspots, arcs, packets };
+    </script>
+
+    <!-- Particles -->
+    <script>
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 30; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (8 + Math.random() * 20) + 's';
+            p.style.animationDelay = (Math.random() * 15) + 's';
+            p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+            container.appendChild(p);
+        }
+    </script>
+
+    <!-- Clock -->
+    <script>
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent =
+                now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+
+    <!-- Console Log Simulator -->
+    <script>
+        const consoleEl = document.getElementById('consoleLog');
+        const logMessages = [
+            ['ok', 'Scan engine initialized. Loading vulnerability modules...'],
+            ['ok', 'Connected to target: testphp.vulnweb.com (44.228.249.3)'],
+            ['warn', 'WAF not detected — target is unprotected.'],
+            ['ok', 'Running Nmap TCP SYN scan on 65535 ports...'],
+            ['ok', 'Port 80/tcp OPEN — HTTP service detected (nginx/1.19.0)'],
+            ['ok', 'Port 443/tcp OPEN — HTTPS service detected'],
+            ['err', 'VULN: X-XSS-Protection header missing'],
+            ['ok', 'DNS enumeration: 3 subdomains discovered via Amass'],
+            ['err', 'VULN: Robots.txt exposes 4 sensitive paths'],
+            ['warn', 'SSL/TLS: OCSP stapling not supported'],
+            ['ok', 'Nikto scan: 14 items checked, 3 findings reported'],
+            ['err', 'CRITICAL: WordPress installation detected at /wp-admin'],
+            ['ok', 'theHarvester: 5 email addresses found'],
+            ['err', 'VULN: ASP.Net misconfiguration — debug mode enabled'],
+            ['ok', 'GolismeroScan complete: 7 vulnerabilities cataloged'],
+            ['ok', 'Generating JSON telemetry for Holo-Dashboard...'],
+            ['ok', 'Report exported to zencefil_report.json'],
+            ['ok', '3D Holo-Dashboard rendering scan topology...'],
+            ['ok', 'All 80 vulnerability modules executed. Scan complete.'],
+        ];
+
+        let logIdx = 0;
+        function addLog() {
+            if (logIdx >= logMessages.length) logIdx = 0;
+            const [type, msg] = logMessages[logIdx++];
+            const time = new Date().toTimeString().slice(0, 8);
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            const cls = type === 'ok' ? 'console-ok' : type === 'warn' ? 'console-warn' : 'console-err';
+            line.innerHTML = `<span class="console-time">[${time}]</span> <span class="console-prefix">zencefilscan</span> <span class="${cls}">${msg}</span>`;
+            consoleEl.appendChild(line);
+            if (consoleEl.children.length > 3) consoleEl.removeChild(consoleEl.firstChild);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        setTimeout(() => { addLog(); setInterval(addLog, 3500); }, 1000);
+    </script>
+
+    <!-- Dashboard Logic -->
+    <script>
+        const EMBEDDED_REPORT = {
+            "target": "testphp.vulnweb.com",
+            "vulnerabilities": [
+                "robotscheck*Robots.txt/Sitemap.xml found with Entries.",
+                "wafcheck*No Web Application Firewall Detected.",
+                "nmapopen*Commonly Opened Ports Detected.",
+                "harvester*Emails Found through Harvesting.",
+                "nmapxssh*XSS Protection Header is not Present.",
+                "asp.netmisconf*ASP.Net Misconfiguration Detected.",
+                "wpcheck*WordPress Installation Detected.",
+                "golism1*Some Vulnerabilities Found with GolismeroScan.",
+                "nikto1*Some issues found on the Webserver.",
+                "uniscan2*Open Files Found with Uniscan.",
+                "whatweb*X-XSS Protection is not Present",
+                "sslyze1*OCSP Stapling is not Supported."
+            ],
+            "total_vulns": 12,
+            "scan_time_seconds": 342.67
+        };
+
+        const sevMap = {
+            'wafcheck': 'high', 'nmapopen': 'medium', 'nmapxssh': 'medium',
+            'asp.netmisconf': 'critical', 'wpcheck': 'high', 'robotscheck': 'low',
+            'harvester': 'low', 'golism1': 'high', 'nikto1': 'medium',
+            'uniscan2': 'medium', 'whatweb': 'medium', 'sslyze1': 'medium'
+        };
+
+        async function loadReport() {
+            try {
+                const res = await fetch('/zencefil_report.json');
+                if (!res.ok) throw new Error('Not found');
+                return await res.json();
+            } catch (e) {
+                return EMBEDDED_REPORT;
+            }
+        }
+
+        function renderDashboard(report) {
+            const content = document.getElementById('content');
+            if (!report) return;
+
+            const vulns = report.vulnerabilities || [];
+            const sevCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+            vulns.forEach(v => {
+                const tool = v.split('*')[0];
+                const sev = sevMap[tool] || 'medium';
+                sevCounts[sev]++;
+            });
+
+            const vulnCards = vulns.map((v, i) => {
+                const tool = v.split('*')[0];
+                const sev = sevMap[tool] || 'medium';
+                const sevUpper = sev.toUpperCase();
+                const badgeCls = `badge-${sev}`;
+                const sevCls = `threat-sev-${sev}`;
+                return `
+                    <div class="threat-item ${sevCls} pointer-active" style="animation-delay: ${i * 0.1}s">
+                        <div class="threat-label" style="color: var(--sev-color, #eab308)">
+                            <span><span class="threat-sev-badge ${badgeCls}">${sevUpper}</span></span>
+                            <span class="threat-id">VULN_${String(i).padStart(3, '0')}</span>
+                        </div>
+                        <div class="threat-desc">${v.split('*')[1] || v}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const totalChecks = 80;
+            const duration = report.scan_time_seconds ? Number(report.scan_time_seconds).toFixed(1) : '?';
+            const checksPerSec = report.scan_time_seconds ? (totalChecks / report.scan_time_seconds).toFixed(2) : '?';
+
+            content.innerHTML = `
+                <!-- Left Column -->
+                <div class="left-col">
+                    <div class="card pointer-active">
+                        <div class="card-scan-line"></div>
+                        <div class="card-header">
+                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            INTELLIGENCE
+                        </div>
+                        <div class="intel-body">
+                            <div class="intel-item">
+                                <span class="intel-label">TARGET DOMAIN</span>
+                                <div class="intel-value"><span class="intel-prefix">› </span>${report.target || 'N/A'}</div>
+                            </div>
+                            <div class="intel-item">
+                                <span class="intel-label">SCAN DURATION</span>
+                                <div class="intel-value">${duration}s</div>
+                            </div>
+                            <div class="vuln-total-area">
+                                <span class="vuln-total-label">TOTAL VULNS DETECTED</span>
+                                <div class="vuln-total-num">${report.total_vulns || 0}</div>
+                                <div class="severity-bar">
+                                    <div class="sev-critical" style="--sev-c:${sevCounts.critical}"></div>
+                                    <div class="sev-high" style="--sev-h:${sevCounts.high}"></div>
+                                    <div class="sev-medium" style="--sev-m:${sevCounts.medium}"></div>
+                                    <div class="sev-low" style="--sev-l:${sevCounts.low}"></div>
+                                </div>
+                                <div class="sev-labels">
+                                    <span class="sev-label"><span class="sev-dot" style="background:#ef4444"></span>CRIT ${sevCounts.critical}</span>
+                                    <span class="sev-label"><span class="sev-dot" style="background:#f97316"></span>HIGH ${sevCounts.high}</span>
+                                    <span class="sev-label"><span class="sev-dot" style="background:#eab308"></span>MED ${sevCounts.medium}</span>
+                                    <span class="sev-label"><span class="sev-dot" style="background:#3b82f6"></span>LOW ${sevCounts.low}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card pointer-active">
+                        <div class="card-header">
+                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            SCAN METRICS
+                        </div>
+                        <div class="intel-body">
+                            <div class="stats-grid">
+                                <div class="stat-mini">
+                                    <div class="stat-mini-value">${totalChecks}</div>
+                                    <div class="stat-mini-label">TOTAL CHECKS</div>
+                                </div>
+                                <div class="stat-mini">
+                                    <div class="stat-mini-value">${checksPerSec}</div>
+                                    <div class="stat-mini-label">CHECKS/SEC</div>
+                                </div>
+                                <div class="stat-mini">
+                                    <div class="stat-mini-value" style="color:#ef4444">${report.total_vulns || 0}</div>
+                                    <div class="stat-mini-label">FINDINGS</div>
+                                </div>
+                                <div class="stat-mini">
+                                    <div class="stat-mini-value">12</div>
+                                    <div class="stat-mini-label">NODES MAPPED</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="right-col">
+                    <div class="card">
+                        <div class="card-header" style="color:#facc15">
+                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            THREAT MATRIX
+                        </div>
+                        <div class="threat-list">${vulnCards}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        loadReport().then(data => {
+            if (data) renderDashboard(data);
+        });
+
+        setInterval(async () => {
+            const data = await loadReport();
+            if (data) renderDashboard(data);
+        }, 15000);
+    </script>
+</body>
+
+</html>

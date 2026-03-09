@@ -1,0 +1,19 @@
+{
+    "target": "testphp.vulnweb.com",
+    "vulnerabilities": [
+        "robotscheck*Robots.txt/Sitemap.xml found with Entries.",
+        "wafcheck*No Web Application Firewall Detected.",
+        "nmapopen*Commonly Opened Ports Detected.",
+        "harvester*Emails Found through Harvesting.",
+        "nmapxssh*XSS Protection Header is not Present.",
+        "asp.netmisconf*ASP.Net Misconfiguration Detected.",
+        "wpcheck*WordPress Installation Detected.",
+        "golism1*Some Vulnerabilities Found with GolismeroScan.",
+        "nikto1*Some issues found on the Webserver.",
+        "uniscan2*Open Files Found with Uniscan.",
+        "whatweb*X-XSS Protection is not Present",
+        "sslyze1*OCSP Stapling is not Supported."
+    ],
+    "total_vulns": 12,
+    "scan_time_seconds": 342.67
+}
