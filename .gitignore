@@ -1,0 +1,23 @@
+*.dbg.*
+*.vul.*
+rs_net
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Build outputs
+dashboard/dist/
+
+# OS files
+.DS_Store
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+/tmp/zencefilscan_*
+zencefil_report.json
