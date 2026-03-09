@@ -6,8 +6,7 @@ rs_net
 node_modules/
 package-lock.json
 
-# Build outputs
-dashboard/dist/
+# Build outputs (except dashboard/dist which is the standalone version)
 
 # OS files
 .DS_Store
